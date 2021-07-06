@@ -10,11 +10,12 @@ def finalize_tf2_for_ocv(model_path):
     cv_model_path = str(Path(model_path).parent / 'frozen_graph.pb')
     model = load_model(model_path)
     # Convert tf format
-    model.save(tf_model_path, save_format='tf')
+    model.save(tf_model_path)
     loaded = tf.saved_model.load(tf_model_path)
     # Convert to function then graph
     infer = loaded.signatures['serving_default']
-    input_kwargs = {model.input.name[:-2]: tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype)}
+    # input_kwargs = {model.input.name[:-2]: tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype)}
+    input_kwargs = {'input_1': tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype)}
     f = tf.function(infer).get_concrete_function(**input_kwargs)
     f2 = convert_variables_to_constants_v2(f)
     graph_def = f2.graph.as_graph_def()

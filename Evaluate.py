@@ -81,7 +81,9 @@ def save_overlay_images(model, test_gen, color=None):
 def get_best_model_path():
     import TrainConfig as config
     model_folder = sorted(Path(config.experiment_folder).glob(f"*{config.experiment_name}*"))[-1]
-    return sorted((model_folder / 'checkpoint').glob('*best*'))[-1]
+    best_model_path = sorted((model_folder / 'checkpoint').glob('*best*'))[-1]
+    print(f"Best model path: {best_model_path}")
+    return best_model_path
 
 
 if __name__ == "__main__":
