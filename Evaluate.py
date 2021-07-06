@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import save_img
@@ -75,3 +76,28 @@ def save_overlay_images(model, test_gen, color=None):
         y_pred = model.predict(x)[0]
         overlay_image = add_overlay_to_image(x[0], y_pred, 1, color)
         save_img(f"overlay{idx:03}.png", overlay_image)
+
+
+def get_best_model_path():
+    import TrainConfig as config
+    model_folder = sorted(Path(config.experiment_folder).glob(f"*{config.experiment_name}*"))[-1]
+    return sorted((model_folder / 'checkpoint').glob('*best*'))[-1]
+
+
+if __name__ == "__main__":
+    from tensorflow.keras.models import load_model
+    from DataGenerator import get_data_for_classification
+    from Finalize import finalize_tf2_for_ocv
+    import TrainConfig as config
+
+    best_model_path = str(get_best_model_path())
+    config.data_folder = Path(config.data_folder)
+    train_gen, validation_gen = get_data_for_classification(config)
+    model = load_model(best_model_path)
+
+    # Eval and finalize
+    confusion_matrix(config, model, validation_gen)
+    if input("Enter 1 to see errors: ") == "1":
+        show_errors(model, validation_gen)
+    if input("Enter 1 to convert best model for OpenCV inference") == "1":
+        finalize_tf2_for_ocv(best_model_path)
