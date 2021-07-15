@@ -10,12 +10,12 @@ AUGMENT_DICT = {'width_shift_range': 30, 'height_shift_range': 30, 'rotation_ran
                 'horizontal_flip': True, 'brightness_range': [0.8, 1.2], 'zoom_range': 0.1}
 
 
-def get_data_for_classification(config, preprocess_input=None, augment_validation_data=False):
+def get_data_for_classification(config, preprocess_input=None, augment_validation_data=False, timestamp_as_unit=False):
     target_size = config.input_shape[:2]
     preprocess_input = preprocess_input or (lambda x: x / 127.5 - 1.0)
 
     # Move to train / test directory
-    partition_dataset(config.data_folder, 1 - config.test_split_ratio, 0, config.test_split_ratio)
+    partition_dataset(config.data_folder, timestamp_as_unit, 1 - config.test_split_ratio, 0, config.test_split_ratio)
     config.data_folder_train = str(config.data_folder / 'Train')
     config.data_folder_test = str(config.data_folder / 'Test')
 
@@ -63,7 +63,7 @@ def train_test_split(X, y, test_split_ratio, random_state=0):
     return tuple(itemgetter(*indices)(data) for data in [X, y] for indices in [train_indices, test_indices])
 
 
-def partition_dataset(dataset_path, train_split=0.7, validation_split=0.15, test_split=0.15):
+def partition_dataset(dataset_path, timestamp_as_unit=False, train_split=0.7, validation_split=0.15, test_split=0.15):
     print(f'Partitioning files from {dataset_path} ... ', end='')
     if train_split + validation_split + test_split != 1:
         print('Also rescaling split fractions to sum to 1 ...', end='')
@@ -89,7 +89,10 @@ def partition_dataset(dataset_path, train_split=0.7, validation_split=0.15, test
     # Get all files, then shuffle while keeping stratified
     partition_paths = [[], [], []]
     for category_folder in entries_to_move:
-        category_files = set((p.parent, p.stem) for p in sorted(category_folder.glob("*.*")))  # don't separate files
+        if timestamp_as_unit:
+            category_files = set((p.parent, p.stem[:19]) for p in sorted(category_folder.glob("*.*")))  # don't separate same timestamp
+        else:
+            category_files = set((p.parent, p.stem) for p in sorted(category_folder.glob("*.*")))  # don't separate same filename
         category_files = list(category_files)
         shuffle(category_files)
         split_idx = [int(train_split * len(category_files)), int((train_split + validation_split) * len(category_files))]
@@ -101,6 +104,6 @@ def partition_dataset(dataset_path, train_split=0.7, validation_split=0.15, test
         for (folder, stem) in paths:
             dst_folder = dataset_path / name / folder.name
             dst_folder.mkdir(exist_ok=True, parents=True)
-            [file_path.rename(dst_folder / file_path.name) for file_path in folder.glob(f"{stem}.*")]
+            [file_path.rename(dst_folder / file_path.name) for file_path in folder.glob(f"{stem}{'' if timestamp_as_unit else '.'}*")]
     [folder.rmdir() for folder in entries_to_move if list(folder.iterdir()) == []]
     print('Done')
