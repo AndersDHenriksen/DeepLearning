@@ -1,38 +1,43 @@
 from pathlib import Path
+from functools import lru_cache
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import save_img
 from Utils import showimg
 
 
-def confusion_matrix(config, model, validation_gen, do_print=True):
-    confusion_gen = validation_gen.image_data_generator.flow_from_directory(config.data_folder_test, shuffle=False,
-        batch_size=config.batch_size, class_mode=validation_gen.class_mode, target_size=config.input_shape[:2])
-    val_pred = model.predict(confusion_gen)
-    if validation_gen.class_mode == 'binary':
-        val_pred = val_pred > .5
-    else:
-        val_pred = np.argmax(val_pred, axis=1)
-    confusion_matrix = tf.math.confusion_matrix(confusion_gen.classes, val_pred)
+@lru_cache()
+def evaluate_cached(model, generator):
+    results = []
+    for idx in range(generator.n):
+        x, y_label = generator[idx]
+        img_path = generator.filepaths[idx]
+        y_label = y_label[0].argmax()
+        y_pred = model.predict(x)[0].argmax()
+        results.append((img_path, y_label, y_pred))  # could have been a dataclass instead
+    return results
+
+
+def confusion_matrix(model, validation_gen, do_print=True):
+    results = evaluate_cached(model, validation_gen)
+    predicts = [r[2] for r in results]
+    labels = [r[1] for r in results]
+    confusion_matrix = tf.math.confusion_matrix(labels, predicts)
     if do_print:
         print(f'Confusion matrix:')
-        for label, cm_row in zip(confusion_gen.class_indices.keys(), confusion_matrix):
+        for label, cm_row in zip(validation_gen.class_indices.keys(), confusion_matrix):
             print(f'{label}: {cm_row}')
     return confusion_matrix
 
 
 def show_errors(model, validation_gen):
-    old_batch_size, validation_gen.batch_size = validation_gen.batch_size, 1
     key_name_dict = {v: k for k, v in validation_gen.class_indices.items()}
-    for idx in range(validation_gen.n):
-        x, y_label = validation_gen[idx]
-        y_label = y_label[0].argmax()
-        y_pred = model.predict(x)[0].argmax()
+    for idx, (img_path, y_label, y_pred) in enumerate(evaluate_cached(model, validation_gen)):
         if y_pred == y_label:
             continue
+        x, _ = validation_gen[idx]
         image = ((x[0] + 1) * 127.5).astype(np.uint8)
         showimg(image, close_on_click=True, title=f"Prediction: {key_name_dict[y_pred]}. Correct {key_name_dict[y_label]}.")
-    validation_gen.batch_size = old_batch_size
 
 
 def mask_to_rgb(mask, color="red"):
@@ -86,7 +91,12 @@ def get_best_model_path():
     return best_model_path
 
 
-if __name__ == "__main__":
+def evaluate_on_generator(model, generator):
+    for img_path, y_label, y_pred in evaluate_cached(model, generator):
+        print(f"{img_path}, {y_label}, {y_pred}")
+
+
+def evaluate_user_choice():
     from tensorflow.keras.models import load_model
     from DataGenerator import get_data_for_classification
     from Finalize import finalize_tf2_for_ocv
@@ -94,12 +104,21 @@ if __name__ == "__main__":
 
     best_model_path = str(get_best_model_path())
     config.data_folder = Path(config.data_folder)
-    train_gen, validation_gen = get_data_for_classification(config)
+    train_gen, test_gen = get_data_for_classification(config)
+    test_gen = test_gen.image_data_generator.flow_from_directory(config.data_folder_test, shuffle=False,
+             batch_size=1, color_mode=test_gen.color_mode, target_size=config.input_shape[:2])
     model = load_model(best_model_path)
 
     # Eval and finalize
-    confusion_matrix(config, model, validation_gen)
+    if input("Enter 1 to calculate confusion matrix: ") == "1":
+        confusion_matrix(model, test_gen)
+    if input("Enter 1 to print result on validation data: ") == "1":
+        evaluate_on_generator(model, test_gen)
     if input("Enter 1 to see errors: ") == "1":
-        show_errors(model, validation_gen)
-    if input("Enter 1 to convert best model for OpenCV inference") == "1":
+        show_errors(model, test_gen)
+    if input("Enter 1 to convert best model for OpenCV inference: ") == "1":
         finalize_tf2_for_ocv(best_model_path)
+
+
+if __name__ == "__main__":
+    evaluate_user_choice()

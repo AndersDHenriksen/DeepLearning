@@ -3,7 +3,7 @@ from Models import standard_cnn as cnn
 from Callbacks import EpochCheckpoint
 from DataGenerator import get_data_for_classification
 from Utils import process_config, tensorboard_launch
-from Evaluate import confusion_matrix, show_errors
+from Evaluate import evaluate_user_choice
 from Finalize import finalize_tf2_for_ocv
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
@@ -52,10 +52,4 @@ model.fit(train_gen,
           validation_data=validation_gen,
           initial_epoch=config.model_epoch)
 
-# Eval and finalize
-confusion_matrix(config, model, validation_gen)
-if input("Enter 1 to see errors: ") == "1":
-    show_errors(model, validation_gen)
-if input("Enter 1 to convert best model for OpenCV inference") == "1":
-    best_model_path = sorted(Path(config.checkpoint_dir).glob("best*.hdf5"))[-1]
-    finalize_tf2_for_ocv(str(best_model_path))
+evaluate_user_choice()
