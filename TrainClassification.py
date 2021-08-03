@@ -1,10 +1,8 @@
-from pathlib import Path
 from Models import standard_cnn as cnn
 from Callbacks import EpochCheckpoint
 from DataGenerator import get_data_for_classification
 from Utils import process_config, tensorboard_launch
 from Evaluate import evaluate_user_choice
-from Finalize import finalize_tf2_for_ocv
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard, ReduceLROnPlateau
