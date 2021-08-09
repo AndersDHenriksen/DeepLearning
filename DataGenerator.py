@@ -1,3 +1,4 @@
+import gc
 import random
 from pathlib import Path
 from shutil import copytree
@@ -6,6 +7,10 @@ from operator import itemgetter
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import load_img, ImageDataGenerator
+try:
+    import imgaug.augmenters as iaa
+except ImportError:
+    pass
 
 
 AUGMENT_DICT = {'width_shift_range': 30, 'height_shift_range': 30, 'rotation_range': 360, 'vertical_flip': True,
@@ -173,11 +178,25 @@ def rescale(img, label):
 def keras_augmentation(images):
     if not hasattr(keras_augmentation, 'aug_gen'):
         keras_augmentation.aug_gen = ImageDataGenerator(**AUGMENT_DICT)
-    return keras_augmentation.aug_gen.flow(images, batch_size=images.shape[0], shuffle=False)[0]
+    images = keras_augmentation.aug_gen.flow(images, batch_size=images.shape[0], shuffle=False)[0]
+    gc.collect()  # prevent memory build-up for some reason
+    return images
+
+
+def imgaug_augmentation(images):
+    seq = iaa.Sequential([
+        iaa.GaussianBlur((0, 1.0)),
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.GammaContrast((0.8, 1.2)),
+        iaa.Affine(scale=(0.95, 1.05), rotate=(-180, 180), translate_px={"x": (-50, 50), 'y': (-50, 50)})
+    ])
+    return seq(images=images.numpy())
 
 
 def keras_augmentation_wrapper(image, labels):
     image_aug = tf.py_function(keras_augmentation, [image], tf.uint8)
+    # image_aug = tf.py_function(imgaug_augmentation, [image], tf.uint8)
     image_aug.set_shape(image.shape)
     return image_aug, labels
 
