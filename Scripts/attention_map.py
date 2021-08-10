@@ -15,7 +15,7 @@ import TrainConfig as config
 from Evaluate import get_best_model_path
 
 MODEL_PATH = get_best_model_path()
-DATA_FOLDER = config.data_folder + '\\All'
+DATA_FOLDER = config.data_folder + '\\Test'
 
 # Load model / modify
 def model_modifier(m):
@@ -39,7 +39,12 @@ saliency_map = standardize(saliency_map)
 
 plt.figure()
 plt.imshow((X[0].mean(axis=-1)*255).astype(np.uint8))
-plt.imshow(255*saliency_map[0], cmap='jet', alpha=0.5)
+plt.show()
+
+plt.figure()
+# plt.imshow((X[0].mean(axis=-1)*255).astype(np.uint8))
+plt.imshow(255*saliency_map[0], cmap='jet')
+plt.waitforbuttonpress()
 
 # --- Grad CAM ---
 
@@ -52,5 +57,8 @@ cam = standardize(cam)
 
 plt.figure()
 heatmap = np.uint8(cm.jet(cam[0])[..., :3] * 255)
-plt.imshow((X[0].mean(axis=-1)*255).astype(np.uint8))
-plt.imshow(heatmap, cmap='jet', alpha=0.5)
+# plt.imshow((X[0].mean(axis=-1)*255).astype(np.uint8))
+plt.imshow(heatmap, cmap='jet')
+plt.waitforbuttonpress()
+
+_ = 'bp'
