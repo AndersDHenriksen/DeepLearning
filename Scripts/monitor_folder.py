@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -11,6 +12,7 @@ model = load_model(str(get_best_model_path()))
 already_inferred = list(MONITOR_FOLDER.glob(ext))
 while True:
     for image_path in MONITOR_FOLDER.glob(ext):
+        time.sleep(1)  # prevent reading file that hasn't been finalized to disk
         if image_path in already_inferred:
             continue
         already_inferred.append(image_path)
