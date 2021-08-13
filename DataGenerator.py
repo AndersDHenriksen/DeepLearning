@@ -138,7 +138,7 @@ def get_data_for_classification_tfds(config, preprocess_input=None, augment_vali
         else:
             print("Warning: Not caching dataset in memory, risk of decoding the every images over and over again. Consider caching to file")
         ds = ds.batch(config.batch_size)
-        if type == 'Train' or augment_validation_data:
+        if name == 'Train' or augment_validation_data:
             if aug_method == 'keras':
                 ds = ds.map(keras_augmentation_wrapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             elif aug_method == 'imgaug':
@@ -189,11 +189,11 @@ def keras_augmentation(images):
 
 def imgaug_augmentation(images):
     seq = iaa.Sequential([
-        iaa.GaussianBlur((0, 1.0)),
+        iaa.GaussianBlur((0, 3.0)),
         iaa.Fliplr(0.5),
         iaa.Flipud(0.5),
         iaa.GammaContrast((0.8, 1.2)),
-        iaa.Affine(scale=(0.95, 1.05), rotate=(-180, 180), translate_px={"x": (-50, 50), 'y': (-50, 50)})
+        iaa.Affine(scale=(0.95, 1.05), rotate=(-180, 180), translate_px={"x": (-30, 30), 'y': (-30, 30)})
     ])
     return seq(images=images.numpy())
 
