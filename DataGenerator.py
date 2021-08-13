@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import load_img, ImageDataGenerator
 try:
-    import imgaug.augmenters as iaa
+    import imgaug.augmenters as iaa  # conda install -c conda-forge imgaug
 except ImportError:
     pass
 
@@ -120,7 +120,9 @@ def partition_dataset(dataset_path, timestamp_as_unit=False, train_split=0.7, va
 
 
 def get_data_for_classification_tfds(config, preprocess_input=None, augment_validation_data=False,
-                                     timestamp_as_unit=False, use_keras_aug=True, cache_data=True):
+                                     timestamp_as_unit=False, aug_method='keras', cache_data=True):
+    assert aug_method in ['tf', 'keras', 'imgaug', 'none']
+
     # Move to train / test directory
     partition_dataset(config.data_folder, timestamp_as_unit, 1 - config.test_split_ratio, 0, config.test_split_ratio)
     config.data_folder_train = str(config.data_folder / 'Train')
@@ -128,7 +130,7 @@ def get_data_for_classification_tfds(config, preprocess_input=None, augment_vali
 
     preprocess_input = preprocess_input or rescale
     gens = {}
-    for type, data_folder in zip(['Train', 'Test'], [config.data_folder_train, config.data_folder_test]):
+    for name, data_folder in zip(['Train', 'Test'], [config.data_folder_train, config.data_folder_test]):
         data_gen = DataGenerator(data_folder, config.input_shape)
         ds = tf.data.Dataset.from_generator(data_gen, (tf.uint8, tf.float32), (config.input_shape, [data_gen.n_labels]))
         if cache_data:
@@ -137,15 +139,17 @@ def get_data_for_classification_tfds(config, preprocess_input=None, augment_vali
             print("Warning: Not caching dataset in memory, risk of decoding the every images over and over again. Consider caching to file")
         ds = ds.batch(config.batch_size)
         if type == 'Train' or augment_validation_data:
-            if use_keras_aug:
+            if aug_method == 'keras':
                 ds = ds.map(keras_augmentation_wrapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            else:
+            elif aug_method == 'imgaug':
+                ds = ds.map(imgaug_augmentation_wrapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            elif aug_method == 'tf':
                 ds = ds.map(tf_augmentation, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         ds = ds.map(preprocess_input)
         ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
         ds.num_classes = data_gen.n_labels
         ds.filepaths = data_gen.image_paths
-        gens[type] = ds
+        gens[name] = ds
     return gens['Train'], gens['Test']
 
 
@@ -196,7 +200,12 @@ def imgaug_augmentation(images):
 
 def keras_augmentation_wrapper(image, labels):
     image_aug = tf.py_function(keras_augmentation, [image], tf.uint8)
-    # image_aug = tf.py_function(imgaug_augmentation, [image], tf.uint8)
+    image_aug.set_shape(image.shape)
+    return image_aug, labels
+
+
+def imgaug_augmentation_wrapper(image, labels):
+    image_aug = tf.py_function(imgaug_augmentation, [image], tf.uint8)
     image_aug.set_shape(image.shape)
     return image_aug, labels
 
@@ -234,8 +243,8 @@ def test_pipeline(dataset):
 if __name__ == "__main__":
     import TrainConfig as config
     config.data_folder = Path(config.data_folder)
-    ds, ds_test = get_data_for_classification_tfds(config)
-    test_pipeline(ds)
+    dateset, ds_test = get_data_for_classification_tfds(config)
+    test_pipeline(dateset)
     test_pipeline(ds_test)
-    benchmark(ds, num_epochs=1)  # Pre run to cache DS
-    benchmark(ds)
+    benchmark(dateset, num_epochs=1)  # Pre run to cache DS
+    benchmark(dateset)
