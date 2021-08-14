@@ -2,9 +2,10 @@ import os
 from pathlib import Path
 from datetime import datetime
 from shutil import copytree, ignore_patterns
-from tensorboard import program
 import numpy as np
 from PIL import Image
+import tensorflow as tf
+from tensorboard import program
 is_matplotlib_available = True
 try:
     # noinspection PyUnresolvedReferences
@@ -44,6 +45,7 @@ def process_config(copy_code_to_model_dir=True):
     config.checkpoint_dir = str(experiment_folder / config.experiment_name / "checkpoint") + os.sep
 
     [Path(dir_path).mkdir(parents=True, exist_ok=True) for dir_path in [config.log_dir, config.checkpoint_dir]]
+    tf.summary.create_file_writer(config.log_dir + "metrics").set_as_default()
 
     if copy_code_to_model_dir:
         code_dir = str(experiment_folder / config.experiment_name / "code") + os.sep

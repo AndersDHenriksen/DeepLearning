@@ -39,6 +39,14 @@ def get_data_for_classification(config, preprocess_input=None, augment_validatio
     return gens['Train'], gens['Test']
 
 
+def get_datagen_from_folder(config, data_folder, preprocess_input=None, do_augment=False):
+    color_mode = "grayscale" if config.input_shape[2] == 1 else 'rgb'
+    preprocess_input = preprocess_input or (lambda x: x / 127.5 - 1.0)
+    idg = ImageDataGenerator(preprocessing_function=preprocess_input, **(AUGMENT_DICT if do_augment else {}))
+    return idg.flow_from_directory(data_folder, batch_size=config.batch_size,
+                                   target_size=config.input_shape[:2], color_mode=color_mode)
+
+
 def oversample_image_generator(image_generator, n_samples=None):
     current_classes = image_generator.classes
     current_filepaths = np.array(image_generator.filepaths)

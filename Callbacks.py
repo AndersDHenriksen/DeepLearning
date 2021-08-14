@@ -1,5 +1,7 @@
-from tensorflow.keras.callbacks import Callback
 import os
+import tensorflow as tf
+from tensorflow.keras.callbacks import Callback
+from DataGenerator import get_datagen_from_folder
 
 
 class EpochCheckpoint(Callback):
@@ -21,7 +23,7 @@ class EpochCheckpoint(Callback):
         # increment the internal epoch counter and get current validation loss
         epoch += 1
         current_val_loss = (logs and logs.get('val_loss')) or 1e31
-        logs.update({'lr': self.model.optimizer.lr.numpy()})  # Add Learning Rate to tensorboard
+        tf.summary.scalar('learning rate', data=self.model.optimizer.lr.numpy(), step=epoch)
 
         # check to see if the model has been validation loss and should be serialized to disk
         if self.save_best and current_val_loss < self.best_val_loss:
@@ -45,3 +47,17 @@ class EpochCheckpoint(Callback):
             self.current_latest = save_path
             if self.verbose:
                 print("Done.")
+
+
+class TestFolder(Callback):
+    def __init__(self, config, data_folder):
+        super(Callback, self).__init__()
+        self.data_gen = get_datagen_from_folder(config, data_folder, preprocess_input=None, do_augment=False)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1) % 10 == 0:
+            # test_metrics = self.model.evaluate(self.data_gen)  # Will not work, will use normal val data instead.
+            y_pred = self.model.predict(self.data_gen)
+            test_acc = (self.data_gen.classes == y_pred.argmax(axis=1)).mean()
+            print(f"test_accuracy: {test_acc:.4}")
+            tf.summary.scalar('epoch_accuracy', data=test_acc, step=epoch + 1)
