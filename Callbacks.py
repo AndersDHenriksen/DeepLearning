@@ -57,7 +57,8 @@ class TestFolder(Callback):
     def on_epoch_end(self, epoch, logs=None):
         if (epoch + 1) % 10 == 0:
             # test_metrics = self.model.evaluate(self.data_gen)  # Will not work, will use normal val data instead.
+            y_label = self.data_gen.classes[self.data_gen.index_array]
             y_pred = self.model.predict(self.data_gen)
-            test_acc = (self.data_gen.classes == y_pred.argmax(axis=1)).mean()
+            test_acc = (y_label == y_pred.argmax(axis=1)).mean()
             print(f"test_accuracy: {test_acc:.4}")
             tf.summary.scalar('epoch_accuracy', data=test_acc, step=epoch + 1)
