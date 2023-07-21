@@ -45,7 +45,7 @@ else:
         label2id={c: str(i) for i, c in enumerate(labels)})
 
     # Compile model
-    loss = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+    loss = tf.keras.losses.CategoricalCrossentropy(from_logits=True)  # logits=True when the model lacks a final softmax layer
     model.compile(optimizer=Adam(learning_rate=config.learning_rate), loss=loss, metrics=['accuracy'])
 model.summary()
 
