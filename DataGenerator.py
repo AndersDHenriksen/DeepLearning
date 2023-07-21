@@ -18,7 +18,7 @@ AUGMENT_DICT = {'width_shift_range': 30, 'height_shift_range': 30, 'rotation_ran
 
 
 def get_data_for_classification(config, preprocess_input=None, augment_validation_data=False, timestamp_as_unit=False):
-    target_size = config.input_shape[:2]
+    target_size = config.input_shape[:2] if config.input_shape[0] > 3 else config.input_shape[1:3]
     preprocess_input = preprocess_input or (lambda x: x / 127.5 - 1.0)
 
     # Move to train / test directory
@@ -31,7 +31,7 @@ def get_data_for_classification(config, preprocess_input=None, augment_validatio
     val_gen = aug_gen if augment_validation_data else ImageDataGenerator(preprocessing_function=preprocess_input)
 
     gens = {}
-    color_mode = "grayscale" if config.input_shape[2] == 1 else 'rgb'
+    color_mode = "grayscale" if min(config.input_shape) == 1 or len(config.input_shape) == 2 else 'rgb'
     for gen, tt in zip([aug_gen, val_gen], ['Train', 'Test']):
         gens[tt] = gen.flow_from_directory(config.data_folder / tt, batch_size=config.batch_size,
                                            target_size=target_size, color_mode=color_mode)
