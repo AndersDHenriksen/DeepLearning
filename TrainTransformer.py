@@ -1,9 +1,7 @@
-# My added  code
 import os
 import tensorflow as tf
 tf.keras.backend.set_image_data_format('channels_first')
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard, ReduceLROnPlateau
 from transformers import ViTImageProcessor, TFViTForImageClassification
 from DataGenerator import get_data_for_classification
@@ -33,9 +31,7 @@ labels = os.listdir(config.data_folder_train)
 
 
 if config.load_model:
-    model = load_model(str(config.load_model))
-    if config.learning_rate:
-        model.optimizer.lr = config.learning_rate
+    model = TFViTForImageClassification.from_pretrained(config.load_model)
 else:
     # Load pre-trained ViT model
     model = TFViTForImageClassification.from_pretrained(
@@ -44,9 +40,9 @@ else:
         id2label={str(i): c for i, c in enumerate(labels)},
         label2id={c: str(i) for i, c in enumerate(labels)})
 
-    # Compile model
-    loss = tf.keras.losses.CategoricalCrossentropy(from_logits=True)  # logits=True when the model lacks a final softmax layer
-    model.compile(optimizer=Adam(learning_rate=config.learning_rate), loss=loss, metrics=['accuracy'])
+# Compile model
+loss = tf.keras.losses.CategoricalCrossentropy(from_logits=True)  # logits=True if the model lacks a final softmax layer
+model.compile(optimizer=Adam(learning_rate=config.learning_rate), loss=loss, metrics=['accuracy'])
 model.summary()
 
 # Define callbacks
@@ -63,7 +59,7 @@ train_results = model.fit(
     validation_data=tf_eval_dataset,
     callbacks=callbacks,
     epochs=config.training_epochs,
-)
+    initial_epoch=config.model_epoch)
 
 # References
 # github.com/NielsRogge/Transformers-Tutorials/tree/master/VisionTransformer

@@ -1,4 +1,5 @@
 import os
+import shutil
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
 from DataGenerator import get_datagen_from_folder
@@ -27,11 +28,11 @@ class EpochCheckpoint(Callback):
 
         # check to see if the model has been validation loss and should be serialized to disk
         if self.save_best and current_val_loss < self.best_val_loss:
-            save_path = os.path.join(self.output_dir, f"best_epoch-{epoch:05d}_val-loss-{current_val_loss:.2f}.hdf5")
+            save_path = os.path.join(self.output_dir, f"best_epoch-{epoch:05d}_val-loss-{current_val_loss:.2f}")
             if self.verbose:
                 print(f'\nEpoch {epoch:02d}: Validation loss improved from {self.best_val_loss:.2f} to {current_val_loss:.2f}, saving model to {save_path} ... ', end="")
-            self.model.save(save_path)
-            os.remove(self.current_best) if self.current_best else None
+            save_path = self.save_model(save_path)
+            self.delete_model(self.current_best)
             self.best_val_loss = current_val_loss
             self.current_best = save_path
             if self.verbose:
@@ -39,14 +40,31 @@ class EpochCheckpoint(Callback):
 
         # check to see if the model should be serialized to disk due to schedule
         if epoch % self.every == 0:
-            save_path = os.path.join(self.output_dir, f"latest_epoch-{epoch:05d}_val-loss-{current_val_loss:.2f}.hdf5")
+            save_path = os.path.join(self.output_dir, f"latest_epoch-{epoch:05d}_val-loss-{current_val_loss:.2f}")
             if self.verbose:
                 print(f'\nEpoch {epoch:02d}: Saving model to {save_path} ... ', end="")
-            self.model.save(save_path)
-            os.remove(self.current_latest) if self.current_latest else None
+            save_path = self.save_model(save_path)
+            self.delete_model(self.current_latest)
             self.current_latest = save_path
             if self.verbose:
                 print("Done.")
+
+    def save_model(self, model_path):
+        if hasattr(self.model, 'save_pretrained'):
+            self.model.save_pretrained(model_path)
+        else:
+            model_path += '.h5'
+            self.model.save(model_path)
+        return model_path
+
+    @staticmethod
+    def delete_model(model_path):
+        if not model_path:
+            return
+        if os.path.isfile(model_path):
+            os.remove(model_path)
+        else:
+            shutil.rmtree(model_path)
 
 
 class TestFolder(Callback):
